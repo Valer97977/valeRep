@@ -1,19 +1,25 @@
 package com.betacom.bec;
 
 import org.assertj.core.api.Assertions;
+import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestMethodOrder;
+import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.slf4j.Logger;
-import com.betacom.jpa.controllers.ProdottoController;
-import com.betacom.jpa.dto.ProdottoDTO;
-import com.betacom.jpa.request.ProdottoReq;
-import com.betacom.jpa.response.ResponseBase;
-import com.betacom.jpa.response.ResponseList;
-import com.betacom.jpa.response.ResponseObject;
+import org.springframework.test.context.ActiveProfiles;
+
+import com.betacom.bec.controller.ProdottoController;
+import com.betacom.bec.dto.ProdottoDTO;
+import com.betacom.bec.request.ProdottoReq;
+import com.betacom.bec.response.ResponseBase;
+import com.betacom.bec.response.ResponseList;
+import com.betacom.bec.response.ResponseObject;
 
 @SpringBootTest
+@ActiveProfiles(value = "sviluppo")
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class ProdottoControllerTest {
 
     @Autowired
@@ -22,76 +28,71 @@ public class ProdottoControllerTest {
     @Autowired
     Logger log;
 
-    // Test del metodo list
-    @Test
-    @Order(2)
-    public void listProdottoTest() {
-        ResponseList<ProdottoDTO> r = prodottoController.list();
-
-        Assertions.assertThat(r.getRc()).isEqualTo(true);
-        Assertions.assertThat(r.getDati().get(0).getNome()).isEqualTo("ProdottoA");
-    }
-
-    // Test del metodo getById
-    @Test
-    @Order(3)
-    public void getByIdTest() {
-        ResponseObject<ProdottoDTO> r = prodottoController.getById("Prod-1");
-
-        Assertions.assertThat(r.getRc()).isEqualTo(true);
-        Assertions.assertThat(r.getDati().getNome()).isEqualTo("ProdottoA");
-    }
-
-    // Test per la gestione degli errori con getById
-    @Test
-    @Order(4)
-    public void getByIdErrorTest() {
-        ResponseObject<ProdottoDTO> r = prodottoController.getById("Prod-4");
-        Assertions.assertThat(r.getRc()).isEqualTo(false);
-        Assertions.assertThat(r.getMsg()).isEqualTo("Prodotto non trovato");
-    }
-
-    // Test del metodo create
     @Test
     @Order(1)
-    public void createProdottoTest() throws Exception {
+    public void listByCategoriaTest() {
+        ResponseList<ProdottoDTO> r = prodottoController.listByCategoria("Categoria Test");
 
-        ProdottoReq req = new ProdottoReq();
-        req.setIdProdotto("Prod-1");
-        req.setNome("ProdottoA");
-
-        ResponseBase response = prodottoController.create(req);
-        log.debug("Prodotto creato: " + req);
-
-        req.setIdProdotto("Prod-2");
-        req.setNome("ProdottoB");
-
-        response = prodottoController.create(req);
-        log.debug("Prodotto creato: " + req);
+        Assertions.assertThat(r.getRc()).isEqualTo(true);
+        Assertions.assertThat(r.getDati()).isNotEmpty();
     }
 
-    // Test del metodo update
+    @Test
+    @Order(2)
+    public void createProdottoTest() throws Exception {
+        ProdottoReq req1 = new ProdottoReq();
+        req1.setNome("Prodotto Test");
+        req1.setMarca("Marca Test");
+        req1.setCategoria("Categoria Test");
+        req1.setDescrizione("Descrizione Test");
+        req1.setPrezzo(100.0);
+        req1.setquantitaDisponibile(10);
+        req1.setUrlImg("http://url.com");
+        req1.setSize("L");
+        req1.setColore("Blu");
+
+        ResponseBase r = prodottoController.create(req1);
+
+        Assertions.assertThat(r.isRc()).isEqualTo(true);
+        log.debug("Prodotto creato: " + req1.getNome());
+    }
+
+    @Test
+    @Order(3)
+    public void updateProdottoTest() throws Exception {
+        ProdottoReq req = new ProdottoReq();
+        req.setId(1);  // Supponiamo che il prodotto con ID 1 esista
+        req.setNome("Prodotto Aggiornato");
+        req.setPrezzo(120.0);
+        req.setquantitaDisponibile(20);
+
+        ResponseBase r = prodottoController.update(req);
+
+        Assertions.assertThat(r.isRc()).isEqualTo(true);
+        log.debug("Prodotto aggiornato con nome: " + req.getNome());
+    }
+
+    @Test
+    @Order(4)
+    public void removeProdottoTest() throws Exception {
+        ProdottoReq req = new ProdottoReq();
+        req.setId(1); // Supponiamo che il prodotto con ID 1 esista
+
+        ResponseBase r = prodottoController.remove(req);
+
+        Assertions.assertThat(r.isRc()).isEqualTo(true);
+        log.debug("Prodotto eliminato con ID: " + req.getId());
+    }
+
     @Test
     @Order(5)
-    public void updateProdottoTest() throws Exception {
-
+    public void removeProdottoErrorTest() throws Exception {
         ProdottoReq req = new ProdottoReq();
-        req.setIdProdotto("Prod-2");
-        req.setNome("ProdottoB_updated");
+        req.setId(999); // ID che non esiste
 
-        ResponseBase response = prodottoController.update(req);
-        log.debug("Update riuscito: " + req.toString());
-    }
+        ResponseBase r = prodottoController.remove(req);
 
-    // Test del metodo delete
-    @Test
-    @Order(6)
-    public void deleteProdottoTest() throws Exception {
-
-        ProdottoReq req = new ProdottoReq();
-        req.setIdProdotto("Prod-2");
-
-        ResponseBase response = prodottoController.delete(req);
-        log.debug("Prodotto eliminato: " + req.toString());
+        Assertions.assertThat(r.isRc()).isEqualTo(false);
+        Assertions.assertThat(r.getMsg()).isEqualTo("Prodotto inesistente");
     }
 }
