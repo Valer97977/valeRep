@@ -1,18 +1,21 @@
-package com.betacom.bec;
+package com.betacom.jpa;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.assertj.core.api.Assertions;
+import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
-import org.junit.jupiter.api.MethodOrderer;
 import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
 import com.betacom.jpa.dto.ProdottoDTO;
+import com.betacom.jpa.models.Prodotto;
+import com.betacom.jpa.repositories.IProdottoRepository;
 import com.betacom.jpa.request.ProdottoReq;
 import com.betacom.jpa.services.interfaces.ProdottoServices;
 
@@ -22,82 +25,131 @@ import com.betacom.jpa.services.interfaces.ProdottoServices;
 public class ProdottoTest {
 
     @Autowired
-    ProdottoServices prodottoService;
+    private ProdottoServices prodottoS;
+    
+    @Autowired
+    private IProdottoRepository prodottoR;
 
     @Autowired
-    Logger log;
+    private Logger log;
 
     @Test
     @Order(1)
     public void createProdottoTest() throws Exception {
+        // Prepare ProdottoReq with the necessary data
+        ProdottoReq req1 = new ProdottoReq();
+        req1.setNome("Prodotto A");
+        req1.setCategoria("Categoria 1");
+        req1.setPrezzo(100.0);
+        req1.setDescrizione("Prodotto di alta qualità");
+        
+        // Call the create method of the service
+        prodottoS.create(req1);
+        log.debug("Prodotto creato con nome: " + req1.getNome());
 
-        ProdottoReq req = new ProdottoReq();
-        req.setIdProdotto("Prod-1");
-        req.setNome("ProdottoA");
+        // Retrieve all products saved
+        List<ProdottoDTO> prodottoList = prodottoS.listProdotti();
 
-        prodottoService.create(req);
-        log.debug("Prodotto creato: " + req);
-
-        req.setIdProdotto("Prod-2");
-        req.setNome("ProdottoB");
-
-        prodottoService.create(req);
-        log.debug("Prodotto creato: " + req);
-
-        List<ProdottoDTO> lP = prodottoService.listAll();
-        Assertions.assertThat(lP.size()).isLessThanOrEqualTo(3);
+        // Assertions to check the result
+        Assertions.assertThat(prodottoList.size()).isGreaterThanOrEqualTo(1); // At least one product created
+        Assertions.assertThat(prodottoList).isNotEmpty();
+        Assertions.assertThat(prodottoList).anyMatch(prod -> prod.getNome().equals("Prodotto A"));
     }
 
     @Test
     @Order(2)
     public void updateProdottoTest() throws Exception {
-
+        // Prepare a ProdottoReq with the new data to update
         ProdottoReq req = new ProdottoReq();
-        req.setIdProdotto("Prod-2");
-        req.setNome("ProdottoB_updated");
+        req.setIdProdotto(1); // Assumes ID 1 exists
+        req.setNome("Prodotto A Updated");
+        req.setCategoria("Categoria 2");
+        req.setPrezzo(120.0);
+        req.setDescrizione("Prodotto di alta qualità aggiornato");
 
-        prodottoService.update(req);
-        log.debug("Prodotto aggiornato: " + req.toString());
+        // Call the update method of the service
+        prodottoS.update(req);
+        log.debug("Prodotto aggiornato: " + req.getIdProdotto());
+
+        // Retrieve the updated product from the database
+        Prodotto prodottoAggiornato = prodottoR.findById(1)
+                .orElseThrow(() -> new Exception("Prodotto non trovato"));
+
+        // Assertions to verify that the product was updated correctly
+        Assertions.assertThat(prodottoAggiornato.getNome()).isEqualTo("Prodotto A Updated");
+        Assertions.assertThat(prodottoAggiornato.getPrezzo()).isEqualTo(120.0);
     }
 
     @Test
     @Order(3)
-    public void deleteProdottoTest() throws Exception {
+    public void listAllProdottiTest() {
+        // Call the listAll method of the service
+        List<ProdottoDTO> prodottoList = prodottoS.listProdotti();
 
-        ProdottoReq req = new ProdottoReq();
-        req.setIdProdotto("Prod-2");
+        // Assertions to check that the list of products is returned correctly
+        Assertions.assertThat(prodottoList).isNotNull(); // Verify the list is not null
+        Assertions.assertThat(prodottoList).isNotEmpty(); // Verify the list is not empty
 
-        prodottoService.delete(req);
-
-        List<ProdottoDTO> prodottoList = prodottoService.listAll();
-        Assertions.assertThat(prodottoList.size()).isEqualTo(1);
+        // Assertion to check if a product with the name "Prodotto A Updated" exists in the list
+        Assertions.assertThat(prodottoList).anyMatch(prod -> prod.getNome().equals("Prodotto A Updated"));
     }
 
     @Test
     @Order(4)
-    public void listAllProdottiTest() throws Exception {
+    public void findByIdProdottoTest() throws Exception {
+        // Test that the product with ID 1 exists
+        ProdottoDTO result = prodottoS.findById(1);
 
-        List<ProdottoDTO> prodotti = prodottoService.listAll();
-        Assertions.assertThat(prodotti).isNotEmpty();
-        log.debug("Totale prodotti presenti: " + prodotti.size());
+        // Assertions to check that the product exists and its data is correct
+        Assertions.assertThat(result).isNotNull();
+        Assertions.assertThat(result.getIdProdotto()).isEqualTo(1); // ID should be 1
+        Assertions.assertThat(result.getNome()).isEqualTo("Prodotto A Updated");
+        Assertions.assertThat(result.getPrezzo()).isEqualTo(120.0);
     }
 
     @Test
     @Order(5)
-    public void findByIdProdottoTest() throws Exception {
+    public void findByIdNotFoundTest() {
+        // Test that the product with ID 999 does not exist
+        Assertions.assertThatThrownBy(() -> prodottoS.findById(999)) // ID 999 does not exist
+            .isInstanceOf(Exception.class) // It should throw an exception
+            .hasMessage("Prodotto inesistente"); // Verify the exception message
+    }
 
-        ProdottoDTO prodotto = prodottoService.findById("Prod-1");
+    @Test
+    @Order(6)
+    public void deleteProdottoTest() throws Exception {
+        // Create a product to delete (Assume ID 1 exists from previous tests)
+        ProdottoReq req = new ProdottoReq();
+        req.setIdProdotto(1); // ID of the product to delete (e.g., ID 1)
 
-        Assertions.assertThat(prodotto).isNotNull();
-        Assertions.assertThat(prodotto.getIdProdotto()).isEqualTo("Prod-1");
-        Assertions.assertThat(prodotto.getNome()).isEqualTo("ProdottoA");
-        log.debug("Prodotto trovato con ID 1: " + prodotto.getIdProdotto());
+        // Before delete, verify that the product exists
+        Prodotto prodottoPrimaDelete = prodottoR.findById(1)
+                .orElseThrow(() -> new Exception("Prodotto non trovato"));
 
-        Exception exception = org.junit.jupiter.api.Assertions.assertThrows(Exception.class, () -> {
-            prodottoService.findById("Prod-999"); // ID che non esiste
-        });
+        // Call the delete method of the service
+        prodottoS.delete(req);
+        log.debug("Prodotto eliminato: " + req.getIdProdotto());
 
-        Assertions.assertThat(exception).isInstanceOf(Exception.class);
-        Assertions.assertThat(exception.getMessage()).isEqualTo("Prodotto inesistente");
+        // Verify that the product has been successfully deleted
+        Optional<Prodotto> prodottoDopoDelete = prodottoR.findById(1);
+        Assertions.assertThat(prodottoDopoDelete).isEmpty(); // The product should no longer exist
+
+        // Verify that the product is no longer in the list
+        List<ProdottoDTO> prodottoList = prodottoS.listProdotti();
+        Assertions.assertThat(prodottoList).noneMatch(prod -> prod.getIdProdotto().equals(1));
+    }
+
+    @Test
+    @Order(7)
+    public void deleteProdottoNotFoundTest() {
+        // Create a request for a product with a non-existing ID (e.g., ID 999)
+        ProdottoReq req = new ProdottoReq();
+        req.setIdProdotto(999); // ID that doesn't exist in the DB
+
+        // Verify that an exception is thrown when trying to delete a non-existing product
+        Assertions.assertThatThrownBy(() -> prodottoS.delete(req))
+            .isInstanceOf(Exception.class) // Should throw an exception
+            .hasMessage("Prodotto inesistente"); // Verify the exception message
     }
 }
