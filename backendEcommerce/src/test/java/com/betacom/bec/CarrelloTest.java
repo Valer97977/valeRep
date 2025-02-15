@@ -126,7 +126,7 @@ public class CarrelloTest {
 
         Assertions.assertThatThrownBy(() -> carrelloService.aggiungiProdottoAlCarrello(utenteId, prodottoId, quantita))
             .isInstanceOf(RuntimeException.class)
-            .hasMessageContaining("Prodotto non trovato con ID 999");
+            .hasMessageContaining("Prodotto con ID 999 non trovato");
     }
 
     @Test
@@ -138,6 +138,6 @@ public class CarrelloTest {
 
         Assertions.assertThatThrownBy(() -> carrelloService.rimuoviProdotto(utenteId, prodottoId, quantita))
             .isInstanceOf(RuntimeException.class)
-            .hasMessageContaining("Prodotto non trovato con ID 999");
+                    .hasMessageContaining("Prodotto con ID 999 non trovato");
     }
 }
